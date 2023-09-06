@@ -54,7 +54,7 @@ namespace DabaFilemanager
 
         private static void ConnectMySQL()
         {
-            string cs = @"server=0.tcp.eu.ngrok.io;userid=lockedstorage;password=,Seb8B?4=f3b-BM;database=lockedstorage;port=19273";
+            string cs = @"server=0.tcp.eu.ngrok.io;userid=;password=;database=;port=19273";
 
             connection = new MySqlConnection(cs);
             try
