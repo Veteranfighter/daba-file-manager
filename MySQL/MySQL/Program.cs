@@ -25,25 +25,36 @@ namespace DabaFilemanager
             while (true)
             {
                 var curCommand = Console.ReadLine();
-                if(curCommand.StartsWith("uploadfile"))
+                if (curCommand.StartsWith("uploadfile"))
                 {
                     uploadfileB64(curCommand.Replace("uploadfile", ""));
                 }
-                else if(curCommand.StartsWith("downloadfile"))
+                else if (curCommand.StartsWith("downloadfile"))
                 {
                     downloadfile(int.Parse(curCommand.Split(' ')[1]));
                 }
-                else if(curCommand.StartsWith("printfiles"))
+                else if (curCommand.StartsWith("printfiles"))
                 {
                     printfiles();
                 }
-                else if(curCommand.StartsWith("help")) {
+                else if (curCommand.StartsWith("help"))
+                {
                     Console.WriteLine("[-- Help --]");
                     Console.WriteLine("     --> uploadfile \"<file path>\" [filename] [file description]    | Upload file from the specified path");
                     Console.WriteLine("     --> printfiles                                                  | Print all stored files");
                     Console.WriteLine("     --> downloadfile <id> [path]                                    | Downloads the file with the specified id to the path");
+                    Console.WriteLine("     --> register <username> <email> <password>                      | Registers a new user");
+                    Console.WriteLine("     --> login <username> <password>                                 | Login to account");
                     Console.WriteLine("     --> help                                                        | Print this message");
                     Console.WriteLine("[----------]");
+                }
+                else if (curCommand.StartsWith("register"))
+                {
+                    RegisterUser(curCommand.Replace("register", ""));
+                }
+                else if (curCommand.StartsWith("login"))
+                {
+                    LoginUser(curCommand.Replace("login", ""));
                 }
 
             }
@@ -52,29 +63,110 @@ namespace DabaFilemanager
 
         private static MySqlConnection connection;
 
+
+        private static void RegisterUser(string input)
+        {
+
+            // 0: username, 1: email, 2: password
+            string[] args = input.Split(' ');
+
+            if (args.Length < 4)
+            {
+                Console.WriteLine("[!] Error: Invalid argument count. Use help for correct syntax");
+                return;
+            }
+
+            string sql = "SELECT * FROM user WHERE username='" + args[1] + "' OR email='" + args[2] + "'";
+            var cmd = new MySqlCommand(sql, connection);
+
+            MySqlDataReader rdr = cmd.ExecuteReader();
+
+            while (rdr.Read())
+            {
+                Console.WriteLine("[!] Error: A user with this name or email is already registered");
+                rdr.Close();
+                return;
+            }
+            rdr.Close();
+
+            var insertSQL = "INSERT INTO user(username, password, email) VALUES(@username, @password, @email)";
+            var command = new MySqlCommand(insertSQL, connection);
+
+            command.Parameters.AddWithValue("@username", args[1]);
+            command.Parameters.AddWithValue("@email", args[2]);
+            command.Parameters.AddWithValue("@password", args[3]);
+            command.Prepare();
+
+            command.ExecuteNonQuery();
+
+            Console.WriteLine("\n[:)] Successfully registered. Username: " + args[1]);
+
+        }
+
+        private static void LoginUser(string input)
+        {
+            // 0: username 1: password
+            string[] args = input.Split(' ');
+
+            if (args.Length < 3)
+            {
+                Console.WriteLine("[!] Error: Invalid argument count. Use help for correct syntax");
+                return;
+            }
+
+            string sql = "SELECT * FROM user WHERE username='" + args[1] + "'";
+            var cmd = new MySqlCommand(sql, connection);
+
+            MySqlDataReader rdr = cmd.ExecuteReader();
+
+            while (rdr.Read())
+            {
+                if (rdr.GetString(2) == args[2] & rdr.GetString(1) == args[1])
+                {
+                    loggedUserId = rdr.GetInt16(0);
+                    loggedUserName = rdr.GetString(1);
+                    loggedUserEmail = rdr.GetString(3);
+
+                    Console.WriteLine("[:)] Success. Your logged in as " + loggedUserName + ": " + loggedUserEmail + " (" + loggedUserId + ") ");
+                    break;
+                }
+                rdr.Close();
+                Console.WriteLine("[!] Error: Login failed. Wrong credentials.");
+                return;
+            }
+            rdr.Close();
+
+
+        }
+
+        private static int loggedUserId = -1;
+        private static string loggedUserName = "";
+        private static string loggedUserEmail = "";
+
         private static void ConnectMySQL()
         {
-            string cs = @"server=0.tcp.eu.ngrok.io;userid=;password=;database=;port=19273";
+            string cs = @"server=0.tcp.eu.ngrok.io;userid=lockedstorage;password=,Seb8B?4=f3b-BM;database=lockedstorage;port=19273";
 
             connection = new MySqlConnection(cs);
             try
             {
                 connection.Open();
                 Console.WriteLine($"MySQL Connected. Version : {connection.ServerVersion}");
-            } catch(Exception ex)
+            }
+            catch (Exception ex)
             {
                 Console.WriteLine("Connection could not be established: " + ex.Message);
             }
-            
-            
 
-            
+
+
+
         }
 
         private static bool uploadfileB64(string args)
         {
 
-            if(!args.Contains("\""))
+            if (!args.Contains("\""))
             {
                 Console.WriteLine("!--! Error: Invalid argument count!");
                 return false;
@@ -93,7 +185,7 @@ namespace DabaFilemanager
 
             filePath = args.Substring(pFrom, pTo - pFrom);
 
-            string[] finalArguments = args.Replace("\"" +filePath+"\"", "").Split(' ');
+            string[] finalArguments = args.Replace("\"" + filePath + "\"", "").Split(' ');
 
             if (!File.Exists(filePath))
             {
@@ -184,11 +276,12 @@ namespace DabaFilemanager
                 {
                     Byte[] bytes = Convert.FromBase64String(Encryption.Decrypt(rdr.GetString(2), key));
                     File.WriteAllBytes(rdr.GetString(1), bytes);
-                } catch(Exception ex)
+                }
+                catch (Exception ex)
                 {
                     Console.WriteLine("Invalid key. Downloaded file is corrupted");
                 }
-               
+
             }
             rdr.Close();
 
