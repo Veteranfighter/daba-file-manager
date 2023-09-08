@@ -1,0 +1,12 @@
+{
+    "name": "daba-file-manager/daba-file-manager",
+    "description": "file manager with multi-user support and end-to-end file-encryption",
+    "type": "project",
+    "license": "MIT License",
+    "authors": [
+        {
+            "name": "The DaBa File Manager Authors"
+        }
+    ],
+    "require": {}
+}
